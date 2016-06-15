@@ -94,6 +94,14 @@
                         </button>
                         <div class="row">
                             <ul class="pills-list" ng-class="{'edit-mode': editStage}">
+                                <li class="stage editable addnew" ng-show="editStage && !editStage._id">
+                                    <span sd-character-count data-item="editStage.name" data-html="false" data-limit="limits.stage"></span>
+                                    <input type="text" id="insert-stage" ng-model="editStage.name" required ng-keyup="handleEdit($event);" />
+                                </li>
+                                <div ng-if="editStage">
+                                    <button class="btn" ng-click="cancel()" translate>Cancel</button>
+                                    <button id="save-stage" class="btn btn-primary" ng-click="save()" ng-disabled="!enableSave()" translate>Save</button>
+                                </div>
                                 <li ng-repeat="stage in stages track by stage._id" ng-click="select(stage)" ng-class="{active: selected === stage, editable: isActive(stage)}">
                                     <div ng-if="!isActive(stage)">
                                         {{ stage.name }}
@@ -116,17 +124,7 @@
                                         </button>
                                     </div>
                                 </li>
-
-                                <li class="stage editable addnew" ng-show="editStage && !editStage._id">
-                                    <span sd-character-count data-item="editStage.name" data-limit="limits.stage"></span>
-                                    <input type="text" id="insert-stage" ng-model="editStage.name" required ng-keyup="handleEdit($event);" />
-                                </li>
                             </ul>
-
-                            <div ng-if="editStage">
-                                <button class="btn" ng-click="cancel()" translate>Cancel</button>
-                                <button id="save-stage" class="btn btn-primary" ng-click="save()" ng-disabled="!enableSave()" translate>Save</button>
-                            </div>
 
                             <p ng-if="message">{{ message }}</p>
                             <p ng-show="_errorUniqueness"><span translate>Stage with name</span> "{{ editStage.name }}"" <span translate>already exists</span>.</p>
