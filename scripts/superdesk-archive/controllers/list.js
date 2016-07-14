@@ -104,27 +104,46 @@
                     $location.search('_id', null);
                 }
             }
-            refreshItems();
+            scheduleQuery();
         }
 
         $scope.$on('task:stage', function(_e, data) {
             if ($scope.stages.selected && (
                 $scope.stages.selected._id === data.new_stage ||
                 $scope.stages.selected._id === data.old_stage)) {
-                refreshItems();
+                scheduleQuery();
             }
         });
 
-        $scope.$on('media_archive', refreshItems);
-        $scope.$on('item:fetch', refreshItems);
-        $scope.$on('item:copy', refreshItems);
-        $scope.$on('item:take', refreshItems);
-        $scope.$on('item:duplicate', refreshItems);
-        $scope.$on('content:update', refreshItems);
-        $scope.$on('item:deleted', refreshItems);
-        $scope.$on('item:highlight', refreshItems);
+        $scope.$on('media_archive', scheduleQuery);
+        $scope.$on('item:fetch', scheduleQuery);
+        $scope.$on('item:copy', scheduleQuery);
+        $scope.$on('item:take', scheduleQuery);
+        $scope.$on('item:duplicate', scheduleQuery);
+        $scope.$on('content:update', scheduleQuery);
+        $scope.$on('item:deleted', scheduleQuery);
+        $scope.$on('item:highlight', scheduleQuery);
         $scope.$on('item:spike', reset);
         $scope.$on('item:unspike', reset);
+
+        var queryTimeout;
+
+        /**
+         * Schedule content reload after some delay
+         *
+         * In case it gets called multiple times it will query only once
+         */
+        function scheduleQuery() {
+            if (!queryTimeout) {
+                queryTimeout = $timeout(function() {
+                    _refresh();
+                    scope.$applyAsync(function() {
+                        // ignore any updates requested in current $digest
+                        queryTimeout = null;
+                    });
+                }, 5000, false);
+            }
+        }
 
         desks.fetchCurrentUserDesks().then(function() {
             // only watch desk/stage after we get current user desk
