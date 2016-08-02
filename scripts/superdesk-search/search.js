@@ -6,7 +6,9 @@
         original_creator: 'Creator',
         from_desk: 'From Desk',
         to_desk: 'To Desk',
-        spike: 'In Spiked'
+        spike: 'In Spiked',
+        subject: 'Subject',
+        company_codes: 'Company Codes'
     });
 
     SearchService.$inject = ['$location', 'gettext', 'config', 'session'];
@@ -21,8 +23,9 @@
             {field: 'genre.name', label: gettext('Genre')}
         ];
 
-        this.cvs = config.search_cvs || [{'id': 'subject', 'name': 'Subject',
-                'field': 'subject', 'list': 'subjectcodes'}];
+        this.cvs = config.search_cvs || 
+        [{'id': 'subject', 'name': 'Subject', 'field': 'subject', 'list': 'subjectcodes'},
+        {'id': 'companycodes', 'name': 'Company Codes', 'field': 'company_codes', 'list': 'company_codes'}];
 
         function getSort() {
             var sort = ($location.search().sort || 'versioncreated:desc').split(':');
@@ -76,6 +79,12 @@
                         case 'spike':
                             // Will get set in the base filters
                             break;
+                        case 'subject':
+                            filters.push({'terms': {'subject.qcode': JSON.parse(params[key])}});
+                            break;
+                        case 'company_codes':
+                            filters.push({'terms': {'company_codes.qcode': JSON.parse(params[key])}});
+                            break;
                         default:
                             var filter = {'term': {}};
                             filter.term[key] = params[key];
@@ -115,6 +124,13 @@
          */
         this.getSubjectCodes = function (currentTags, subjectcodes) {
             return this.getSelectedCodes(currentTags, subjectcodes, 'subject');
+        };
+
+        /*
+         * Function for finding object by string array for company codes
+         */
+        this.getCompanyCodes = function (currentTags, codes) {
+            return this.getSelectedCodes(currentTags, codes, 'company_codes');
         };
 
         // sort public api
@@ -600,6 +616,27 @@
                             tags.selectedParameters.push(value + ':' +
                                 desks.deskLookup[params[key].split('-')[0]].name);
                             break;
+                        case 'company_codes':
+                        case 'subject':
+                            
+                            var processSelectedItems = function (selectedItems, codeList) {
+                                _.forEach(selecteditems, function(selecteditem) {
+                                    var name = _.result(_.find(codeList, {qcode: selecteditem}), 'name');
+                                    if (name) {
+                                        tags.selectedParameters.push(value + ':(' + name + ')');
+                                    }
+                                });
+                            };
+                            
+                            for (var i = 0; i < cvs.length; i++) {
+                                var cv = cvs[i];
+                                if (cv.field === key) {
+                                    var codeList = metadata.values[cv.list];
+                                    var selecteditems = JSON.parse(params[key]);
+                                    processSelectedItems(selecteditems, codeList);
+                                }
+                            }
+                            break;
                         case 'spike':
                             if (params[key]) {
                                 tags.selectedParameters.push(value);
@@ -761,16 +798,26 @@
         .service('tags', TagService)
         .controller('MultiActionBar', MultiActionBarController)
 
+        .directive('sdSearchFilters', ['$location', 'desks', 'privileges', 'tags', 'asset', 'metadata', '$rootScope',
+            function($location, desks, privileges, tags, asset, metadata, $rootScope) {
+                return {
+                templateUrl: asset.templateUrl('superdesk-search/views/search-filters.html'),
+                link: function(scope, element, attrs, controller) {
+                    
+                }
+            };
+        }])
+
         /**
          * A directive that generates the sidebar containing search results
          * filters (so-called "aggregations" in Elastic's terms).
          */
-        .directive('sdSearchFacets', ['$location', 'desks', 'privileges', 'tags', 'asset', 'metadata',
-            function($location, desks, privileges, tags, asset, metadata) {
+        .directive('sdSearchPanel', ['$location', 'desks', 'privileges', 'tags', 'asset', 'metadata', '$rootScope',
+            function($location, desks, privileges, tags, asset, metadata, $rootScope) {
             desks.initialize();
             return {
                 require: '^sdSearchContainer',
-                templateUrl: asset.templateUrl('superdesk-search/views/search-facets.html'),
+                templateUrl: asset.templateUrl('superdesk-search/views/search-panel.html'),
                 scope: {
                     items: '=',
                     desk: '=',
@@ -779,7 +826,8 @@
                 },
                 link: function(scope, element, attrs, controller) {
                     scope.flags = controller.flags;
-                    scope.sTab = true;
+                    scope.sTab = 'advancedSearch';
+                    scope.innerTab = 'parameters';
                     scope.editingSearch = false;
                     scope.showSaveSearch = false;
 
@@ -788,16 +836,34 @@
                     scope.search_config = metadata.search_config;
 
                     scope.$on('edit:search', function(event, args)  {
-                        scope.sTab = true;
+                        scope.sTab = 'advancedSearch';
+                        scope.innerTab = 'parameters';
+                        scope.activateSearchPane = false;
+                        scope.editingSearch = args;
+                        scope.edit = _.create(scope.editingSearch) || {};
                     });
 
-                    scope.changeTab = function() {
-                        scope.sTab = !scope.sTab;
+                    scope.changeTab = function(tabName) {
+                        scope.sTab = tabName;
                     };
 
-                    scope.resetEditingSearch = function() {
-                        scope.editingSearch = false;
-                        metadata.removeSubjectTerm(null);
+                    scope.display = function(tabName) {
+                        scope.innerTab = tabName;
+                        if (tabName === 'filters') {
+                            $rootScope.aggregations = 1;
+                            $rootScope.$broadcast('aggregations:changed');
+                        } else {
+                            $rootScope.aggregations = 0;
+                        }
+                    };
+
+                    scope.searching = function() {
+                        return !_.isEmpty($location.search());
+                    };
+
+                    scope.closeFacets = function() {
+                        scope.flags.facets = false;
+                        $rootScope.aggregations = 0;
                     };
 
                     var initAggregations = function () {
@@ -1029,43 +1095,30 @@
                     };
 
                     scope.removeParameter = function(param) {
-                        var params = $location.search();
-                        if (params.q) {
-                            var found = false;
-                            angular.forEach(scope.cvs, function(cv) {
-                                // If it is subject code, remove it from left bar, too
-                                if (param.indexOf(cv.id + '.name:') !== -1) {
-                                    var elementName = param.substring(
-                                        param.indexOf('(') + 1,
-                                        param.lastIndexOf(')')
-                                    );
+                        var searchParameters = $location.search();
+                        var parameterValue = param.substring(param.indexOf('(') + 1, param.lastIndexOf(')'));
 
-                                    var codeList = scope.metadata[cv.list];
-                                    var qcode = _.result(_.find(codeList, function(item) {
-                                                            return item.name === elementName;
-                                                        }), 'qcode');
-                                    if (qcode) {
-                                        found = true;
-                                        params.q = params.q.replace(cv.id + '.qcode:(' + qcode + ')', '').trim();
-                                        $location.search('q', params.q || null);
-
-                                        if (metadata.subjectScope != null) {
-                                            metadata.removeSubjectTerm(elementName);
-                                        }
+                        if (searchParameters.q && searchParameters.q.indexOf(param) >= 0) {
+                            searchParameters.q = searchParameters.q.replace(param, '').trim();
+                            $location.search('q', searchParameters.q || null);
+                            return;
+                        }
+                        
+                        angular.forEach(scope.cvs, function(cv) {
+                            if (param.indexOf(cv.name) !== -1) {
+                                var codeList = scope.metadata[cv.list];
+                                var qcode = _.result(_.find(codeList, function(code) {
+                                                        return code.name === parameterValue;
+                                                    }), 'qcode');
+                                if (qcode) {
+                                    if (searchParameters[cv.field]) {
+                                        tags.removeFacet(cv.field, qcode);
+                                    } else {
+                                        searchParameters.q = searchParameters.q.replace(cv.id + '.qcode:(' + qcode + ')', '').trim();
+                                        $location.search('q', searchParameters.q || null);
                                     }
                                 }
-                            });
-
-                            if (!found) {
-                                params.q = params.q.replace(param, '').trim();
-                                $location.search('q', params.q || null);
-                            }
-                        }
-
-                        _.each(PARAMETERS, function(val, key) {
-                            if (param.indexOf(val) !== -1) {
-                                $location.search(key, null);
-                            }
+                            } 
                         });
                     };
                 }
@@ -1087,12 +1140,7 @@
             'moment',
             'gettext',
             'superdesk',
-            'workflowService',
-            'archiveService',
-            'activityService',
-            'multi',
-            'desks',
-            'familyService',
+            '$rootScope',
         function(
             $location,
             preferencesService,
@@ -1104,13 +1152,8 @@
             session,
             moment,
             gettext,
-            superdesk,
-            workflowService,
-            archiveService,
-            activityService,
             multi,
-            desks,
-            familyService
+            $rootScope
         ) { // uff - should it use injector instead?
             var preferencesUpdate = {
                 'archive:view': {
@@ -1175,6 +1218,8 @@
                         queryItems(event, data);
                     });
 
+					scope.$on('aggregations:changed', queryItems);
+
                     scope.$on('broadcast:preview', function(event, args) {
                         scope.previewingBroadcast = true;
                         scope.preview(args.item);
@@ -1224,7 +1269,7 @@
                                 scope.$applyAsync(function() {
                                     nextUpdate = null; // reset for next $digest
                                 });
-                            }, 1000, false);
+                            }, 300, false);
                         }
                     }
 
@@ -1241,8 +1286,9 @@
                         }
                         criteria.source.from = 0;
                         scope.total = null;
-                        criteria.aggregations = 1;
-                        criteria.es_highlight = 1;
+                        scope.items = null;
+                        criteria.aggregations = $rootScope.aggregations;
+						criteria.es_highlight = 1;
                         return api.query(getProvider(criteria), criteria).then(function (items) {
                             if (!scope.showRefresh && data && !data.force && (data.user !== session.identity._id)) {
 
@@ -1266,6 +1312,8 @@
                                 // update scope items only with the matching fetched items
                                 scope.items = search.updateItems(items, scope.items);
                             }
+                        }).finally(function() {
+                            scope.loading = false;
                         });
                     }
 
@@ -1340,8 +1388,11 @@
                         if (items) {
                             setScopeItems(items, force);
                         } else if (next) {
+                            scope.loading = true;
                             criteria.source.from = (criteria.source.from || 0) + criteria.source.size;
-                            api.query(getProvider(criteria), criteria).then(setScopeItems);
+                            api.query(getProvider(criteria), criteria).then(setScopeItems).finally(function() {
+                                scope.loading = false;
+                            });
                         } else {
                             var query = _.omit($location.search(), '_id');
 
@@ -1352,9 +1403,12 @@
                             criteria = search.query($location.search()).getCriteria(true);
                             criteria.source.from = 0;
                             criteria.source.size = 50;
-                            criteria.aggregations = 1;
-                            criteria.es_highlight = 1;
-                            api.query(getProvider(criteria), criteria).then(setScopeItems);
+                            criteria.aggregations = $rootScope.aggregations;
+							criteria.es_highlight = 1;
+                            scope.loading = true;
+                            api.query(getProvider(criteria), criteria).then(setScopeItems).finally(function() {
+                                scope.loading = false;
+                            });
                             oldQuery = query;
                         }
 
@@ -1438,28 +1492,8 @@
                     };
 
                     // init
+                    $rootScope.aggregations = 0;
                     _queryItems();
-                }
-            };
-        }])
-
-        .directive('sdSearchWithin', ['$location', 'asset', function($location, asset) {
-            return {
-                scope: {},
-                templateUrl: asset.templateUrl('superdesk-search/views/search-within.html'),
-                link: function(scope, elem) {
-                    scope.searchWithin = function() {
-                        if (scope.within) {
-                            var params = $location.search();
-                            if (params.q) {
-                                scope.query = params.q + ' (' + scope.within + ') ';
-                            } else {
-                                scope.query = '(' + scope.within + ')';
-                            }
-                            $location.search('q', scope.query || null);
-                            scope.within = null;
-                        }
-                    };
                 }
             };
         }])
@@ -1467,8 +1501,8 @@
         /**
          * Opens and manages save search panel
          */
-        .directive('sdSaveSearch', ['$location', 'asset', 'api', 'session', 'notify', 'gettext',
-            function($location, asset, api, session, notify, gettext) {
+        .directive('sdSaveSearch', ['$location', 'asset', 'api', 'session', 'notify', 'gettext', '$rootScope',
+            function($location, asset, api, session, notify, gettext, $rootScope) {
             return {
                 templateUrl: asset.templateUrl('superdesk-search/views/save-search.html'),
                 link: function(scope, elem) {
@@ -1495,16 +1529,20 @@
                     };
 
                     scope.cancel = function () {
-                        scope.sTab = scope.editingSearch ? false : true;
-                        scope.resetEditingSearch();
+                        scope.sTab = scope.editingSearch ? 'savedSearches' : 'advancedSearch';
+                        scope.editingSearch = false;
                         scope.edit = null;
                         scope.activateSearchPane = false;
                     };
 
                     scope.clear = function() {
-                        scope.resetEditingSearch();
+                        scope.editingSearch = false;
                         scope.edit = null;
                         $location.url($location.path());
+                    };
+
+                    scope.search = function() {
+                        $rootScope.$broadcast('search:parameters');
                     };
 
                     /**
@@ -1515,7 +1553,7 @@
                         function onSuccess() {
                             notify.success(gettext('Search was saved successfully'));
                             scope.cancel();
-                            scope.sTab = false;
+                            scope.sTab = 'savedSearches';
                             scope.edit = null;
                         }
 
@@ -1784,16 +1822,18 @@
                     };
 
                     scope.search = function () {
-                        var newQuery = _.uniq(scope.query.split(/[\s,]+/)),
-                            output = '';
+                        var output = '';
 
-                        _.each(newQuery, function (item, key) {
-                            if (item) {
-                                output += key !== 0 ? ' (' + item + ')' : '(' + item + ')';
-                            }
-                        });
+                        if (scope.query) {
+                            var newQuery = _.uniq(scope.query.split(/[\s,]+/));
+                            _.each(newQuery, function (item, key) {
+                                if (item) {
+                                    output += key !== 0 ? ' (' + item + ')' : '(' + item + ')';
+                                }
+                            });
 
-                        scope.query = newQuery.join(' ');
+                            scope.query = newQuery.join(' ');
+                        }
                         $location.search('q', output || null);
                     };
 
@@ -1828,7 +1868,7 @@
             };
         }])
 
-        .directive('sdItemSearch', ['$location', '$timeout', 'asset', 'api', 'tags', 'search', 'metadata',
+        .directive('sdItemRepo', ['$location', '$timeout', 'asset', 'api', 'tags', 'search', 'metadata',
             'desks', 'userList', 'searchProviderService', '$filter', 'gettext',
             function($location, $timeout, asset, api, tags, search, metadata, desks,
                      userList, searchProviderService, $filter, gettext) {
@@ -1837,7 +1877,139 @@
                         repo: '=',
                         context: '='
                     },
-                    templateUrl: asset.templateUrl('superdesk-search/views/item-search.html'),
+                    templateUrl: asset.templateUrl('superdesk-search/views/item-repo.html'),
+                    link: function(scope, elem) {
+
+                        /*
+                         * function to initialize default values on init or search provider change
+                         */
+                        scope.setDefaultValues = function() {
+                            if (scope.repo && scope.repo.search && scope.repo.search.indexOf('scanpix') === 0) {
+                                scope.meta.scanpix_subscription = scope.scanpix_subscriptions[0].name;
+                            }
+                        };
+
+                        /*
+                         * init function to setup the directive initial state and 
+                         * called by $locationChangeSuccess event
+                         */
+                        function init() {
+                            var params = $location.search();
+                            scope.query = params.q;
+
+                            scope.search_config = metadata.search_config;
+                            scope.scanpix_subscriptions = [{
+                                name: 'subscription',
+                                label: gettext('inside subscription'),
+                            }, {
+                                name: 'all',
+                                label: gettext('all photos'),
+                            }];
+
+                            searchProviderService.getAllowedProviderTypes().then(function(providerTypes) {
+                                scope.searchProviderTypes = providerTypes;
+                            });
+
+                            if (params.repo) {
+                                var param_list = params.repo.split(',');
+                                scope.repo.archive = param_list.indexOf('archive') >= 0;
+                                scope.repo.ingest = param_list.indexOf('ingest') >= 0;
+                                scope.repo.published = param_list.indexOf('published') >= 0;
+                                scope.repo.archived = param_list.indexOf('archived') >= 0;
+                            } else {
+                                // No repo is selected so reset the repos
+                                scope.repo = {
+                                    ingest: true, archive: true,
+                                    published: true, archived: true,
+                                    search: 'local'
+                                };
+                            }
+
+                            if (!scope.repo) {
+                                scope.repo = {'search': 'local'};
+                            } else {
+                                if (!scope.repo.archive && !scope.repo.ingest &&
+                                    !scope.repo.published && !scope.repo.archived) {
+                                    scope.repo.search = params.repo;
+                                } else {
+                                    scope.repo.search = 'local';
+                                }
+                            }
+
+                            scope.setDefaultValues();
+                            fetchProviders(params);
+                        }
+
+                        init();
+
+                        /*
+                         * Initialize the search providers
+                         */
+                        function fetchProviders(params) {
+                            return api.search_providers.query({max_results: 200})
+                                .then(function(result) {
+                                    scope.providers = $filter('sortByName')(result._items, 'search_provider');
+                                    setDefaultSearch(params);
+                                });
+                        }
+
+                        function setDefaultSearch(params) {
+                            if (scope.providers.length > 0 && (!params || !params.repo)) {
+                                scope.providers.forEach(function(provider, index, array) {
+                                    if (provider.is_default) {
+                                        scope.repo = {'search': provider.source};
+                                    }
+                                });
+                            }
+                        }
+
+                        function getActiveRepos() {
+                            var repos = [];
+
+                            if (scope.repo.search === 'local') {
+                                angular.forEach(scope.repo, function(val, key) {
+                                    if (val && val !== 'local') {
+                                        repos.push(key);
+                                    }
+                                });
+
+                                return repos.length ? repos.join(',') : null;
+
+                            } else {
+                                return scope.repo.search;
+                            }
+                        }
+
+                        scope.$on('$locationChangeSuccess', function() {
+                            if (getActiveRepos() !== $location.search().repo) {
+                                init();
+                            }
+                        });
+
+                        scope.isDefault = function(provider) {
+                            return scope.repo && scope.repo.search && provider.source && scope.repo.search === provider.source;
+                        };
+
+                        scope.toggleRepo = function(repoName) {
+                            scope.repo[repoName] = !scope.repo[repoName];
+                            $location.search('repo', getActiveRepos());
+                        };
+                        
+                    }
+                };
+            }
+        ])
+
+        .directive('sdSearchParameters', ['$location', '$timeout', 'asset', 'api', 'tags', 'search', 'metadata',
+            'desks', 'userList', 'searchProviderService', '$filter', 'gettext',
+            function($location, $timeout, asset, api, tags, search, metadata, desks,
+                     userList, searchProviderService, $filter, gettext) {
+                return {
+                    scope: {
+                        repo: '=',
+                        context: '='
+                    },
+                    templateUrl: asset.templateUrl('superdesk-search/views/search-parameters.html'),
                     link: function(scope, elem) {
 
                         var input = elem.find('#search-input');
@@ -1851,15 +2023,6 @@
                                 event.preventDefault();
                             }
                         });
-
-                        /*
-                         * function to initialize default values on init or search provider change
-                         */
-                        scope.setDefaultValues = function() {
-                            if (scope.repo && scope.repo.search && scope.repo.search.indexOf('scanpix') === 0) {
-                                scope.meta.scanpix_subscription = scope.scanpix_subscriptions[0].name;
-                            }
-                        };
 
                         /*
                          * init function to setup the directive initial state and called by $locationChangeSuccess event
@@ -1885,31 +2048,6 @@
                                 scope.lookupCvs[cv.id] = cv;
                             });
 
-                            searchProviderService.getAllowedProviderTypes().then(function(providerTypes) {
-                                scope.searchProviderTypes = providerTypes;
-                            });
-
-                            if (params.repo) {
-                                var param_list = params.repo.split(',');
-                                scope.repo.archive = param_list.indexOf('archive') >= 0;
-                                scope.repo.ingest = param_list.indexOf('ingest') >= 0;
-                                scope.repo.published = param_list.indexOf('published') >= 0;
-                                scope.repo.archived = param_list.indexOf('archived') >= 0;
-                            }
-
-                            if (!scope.repo) {
-                                scope.repo = {'search': 'local'};
-                            } else {
-                                if (!scope.repo.archive && !scope.repo.ingest &&
-                                    !scope.repo.published && !scope.repo.archived) {
-                                    scope.repo.search = params.repo;
-                                } else {
-                                    scope.repo.search = 'local';
-                                }
-                            }
-
-                            scope.setDefaultValues();
-
                             if ($location.search().unique_name) {
                                 scope.fields.unique_name = $location.search().unique_name;
                             }
@@ -1920,11 +2058,11 @@
 
                             if (load_data) {
                                 fetchMetadata();
-                                fetchProviders(params);
                                 fetchUsers();
                                 fetchDesks();
                             } else {
                                 initializeDesksDropDown();
+                                initializeItems();
                             }
                         }
 
@@ -1948,27 +2086,6 @@
                         }
 
                         /*
-                         * Initialize the search providers
-                         */
-                        function fetchProviders(params) {
-                            return api.search_providers.query({max_results: 200})
-                                .then(function(result) {
-                                    scope.providers = $filter('sortByName')(result._items, 'search_provider');
-                                    setDefaultSearch(params);
-                                });
-                        }
-
-                        function setDefaultSearch(params) {
-                            if (scope.providers.length > 0 && (!params || !params.repo)) {
-                                scope.providers.forEach(function(provider, index, array) {
-                                    if (provider.is_default) {
-                                        scope.repo = {'search': provider.source};
-                                    }
-                                });
-                            }
-                        }
-
-                        /*
                          * Initialize the desk drop down
                          */
                         function fetchDesks() {
@@ -1988,6 +2105,25 @@
                                 initFromToDesk($location.search().from_desk, 'from_desk');
                                 initFromToDesk($location.search().to_desk, 'to_desk');
                             }
+                        }
+
+                        function initializeItems() {
+                            angular.forEach(scope.cvs, function(cv) {
+                                if ($location.search()[cv.field]) {
+                                    scope.selecteditems[cv.id] = [];
+                                    var itemList = JSON.parse($location.search()[cv.field]);
+                                    angular.forEach(itemList, function(qcode) {
+                                        var match = _.find(scope.metadata[cv.list], function(m) {
+                                            return m.qcode === qcode;
+                                        });
+                                        scope.selecteditems[cv.id].push(match);
+                                        scope.fields[cv.field] = [];
+                                        scope.fields[cv.field].push(match);
+                                    });
+                                } else {
+                                    scope.selecteditems[cv.id] = [];
+                                }
+                            });
                         }
 
                         /*
@@ -2021,9 +2157,8 @@
                                 })
                                 .then(function (currentTags) {
                                     scope.selecteditems = {};
-                                    angular.forEach(scope.cvs, function(cv) {
-                                        scope.selecteditems[cv.id] = search.getSelectedCodes(currentTags, scope.metadata[cv.list], cv.id);
-                                    });
+                                    scope.selectedCodes = {};
+                                    initializeItems();
                                 });
                         }
 
@@ -2033,27 +2168,12 @@
                                 scope.fields.to_desk !== $location.search().to_desk ||
                                 scope.fields.unique_name !== $location.search().unique_name ||
                                 scope.fields.original_creator !== $location.search().original_creator ||
+                                scope.fields.subject !== $location.search().subject ||
+                                scope.fields.company_codes !== $location.search().company_codes ||
                                 scope.fields.spike !== $location.search().spike) {
                                 init();
                             }
                         });
-
-                        function getActiveRepos() {
-                            var repos = [];
-
-                            if (scope.repo.search === 'local') {
-                                angular.forEach(scope.repo, function(val, key) {
-                                    if (val && val !== 'local') {
-                                        repos.push(key);
-                                    }
-                                });
-
-                                return repos.length ? repos.join(',') : null;
-
-                            } else {
-                                return scope.repo.search;
-                            }
-                        }
 
                         function getFirstKey(data) {
                             for (var prop in data) {
@@ -2088,9 +2208,7 @@
                                     metas.push(val.join(' '));
                                 } else {
                                     if (val) {
-                                        if (key.indexOf('scanpix_') === 0) {
-                                            key = key.substring(8);
-                                        }
+                                        
                                         if (typeof(val) === 'string'){
                                             if (val) {
                                                 metas.push(key + ':(' + val + ')');
@@ -2115,6 +2233,8 @@
                                     $location.search('from_desk', getDeskParam('from_desk'));
                                 } else if (key === 'to_desk') {
                                     $location.search('to_desk', getDeskParam('to_desk'));
+                                } else if (_.includes(['subject', 'company_codes'], key)) {
+                                    $location.search(key, JSON.stringify(_.map(val, 'qcode')));
                                 } else {
                                     $location.search(key, val);
                                 }
@@ -2132,30 +2252,10 @@
 
                         }
 
-                        /**
-                         * Function which dictates whether the Go button should be enabled or disabled.
-                         *
-                         * @return {boolean} true if Go button in parameters section should be enabled. false otherwise.
-                         */
-                        scope.isSearchEnabled = function() {
-                            return scope.repo.search && (scope.repo.search !== 'local' ||
-                                (scope.repo.ingest || scope.repo.archive || scope.repo.published || scope.repo.archived));
-                        };
-
-                        scope.isDefault = function(provider) {
-                            return scope.repo && scope.repo.search && provider.source && scope.repo.search === provider.source;
-                        };
-
-                        function updateParam() {
-                            scope.query = $location.search().q;
+                        scope.$on('search:parameters', function openSearch() {
                             $location.search('q', getQuery() || null);
-                            $location.search('repo', getActiveRepos());
                             scope.meta = {};
-                        }
-
-                        scope.search = function() {
-                            updateParam();
-                        };
+                        });
 
                         scope.$on('key:s', function openSearch() {
                             scope.$apply(function() {
@@ -2188,33 +2288,14 @@
                         /*
                          * Filter content by subject search
                          */
-                        scope.subjectSearch = function (item) {
-                            tags.initSelectedFacets().then(function (currentTags) {
-                                angular.forEach(item, function(newSelectedCodes, field) {
-                                    var codeList = scope.metadata[scope.lookupCvs[field].list];
-                                    var selectedCodes = search.getSelectedCodes(currentTags, codeList, field);
-                                    if (newSelectedCodes.length > selectedCodes.length) {
-                                        /* Adding subject codes to filter */
-                                        var qcode = newSelectedCodes[newSelectedCodes.length - 1].qcode,
-                                            addItemSubjectName = field + '.qcode:(' + qcode + ')',
-                                            q = (scope.query ? scope.query + ' ' + addItemSubjectName : addItemSubjectName);
-                                        $location.search('q', q);
-                                    } else if (newSelectedCodes.length < selectedCodes.length) {
-                                        /* Removing subject codes from filter */
-                                        var params = $location.search();
-                                        if (params.q) {
-                                            for (var j = 0; j < selectedCodes.length; j++) {
-                                                if (newSelectedCodes.indexOf(selectedCodes[j]) === -1) {
-                                                    var removeItemSubjectName = field + '.qcode:(' + selectedCodes[j].qcode + ')';
-                                                    params.q = params.q.replace(removeItemSubjectName, '').trim();
-                                                    $location.search('q', params.q || null);
-                                                    return;
-                                                }
-                                            }
-                                        }
-                                    }
-                                });
-                            });
+                        scope.itemSearch = function (items, type) {
+                            
+                            if (items[type].length) {
+                                scope.fields[type] = items[type];
+                            } else {
+                                delete scope.fields[type];
+                            }
+
                         };
 
                         scope.$on('$destroy', function() {
