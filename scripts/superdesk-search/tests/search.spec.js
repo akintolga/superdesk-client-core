@@ -144,7 +144,7 @@ describe('search service', function() {
     });
 });
 
-describe('sdSearchFacets directive', function () {
+describe('sdSearchPanel directive', function () {
     var desks,
         facetsInit,
         fakeApi,
@@ -223,13 +223,13 @@ describe('sdSearchFacets directive', function () {
         // directive compilation...
         html = [
             '<div sd-search-container>',
-            '    <div sd-search-facets></div>',
+            '    <div sd-search-panel></div>',
             '</div>'
         ].join('');
 
         scope = $rootScope.$new();
 
-        $element = $compile(html)(scope).find('div[sd-search-facets]');
+        $element = $compile(html)(scope).find('div[sd-search-panel]');
         scope.$digest();
 
         isoScope = $element.isolateScope();
