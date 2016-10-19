@@ -1,5 +1,5 @@
-DesksFactory.$inject = ['$q', 'api', 'preferencesService', 'userList', 'notify', 'session', '$filter'];
-export function DesksFactory($q, api, preferencesService, userList, notify, session, $filter) {
+DesksFactory.$inject = ['$q', 'api', 'preferencesService', 'userList', 'notify', 'session', '$filter', 'privileges'];
+export function DesksFactory($q, api, preferencesService, userList, notify, session, $filter, privileges) {
     var userDesks, userDesksPromise;
 
     var _fetchAll = function(endpoint, page, items) {
@@ -291,6 +291,16 @@ export function DesksFactory($q, api, preferencesService, userList, notify, sess
         },
         isReadOnlyStage: function(stageId) {
             return this.stageLookup[stageId] ? this.stageLookup[stageId].local_readonly : false;
+        },
+        /**
+         * Mark an item for a desk (mention)
+         */
+        markItem: function(desk, marked_item) {
+            return api.save('marked_for_desks', {marked_desk: desk, marked_item: marked_item.guid});
+        },
+        hasMarkItemPrivilege: function() {
+            return true;
+            //return !!privileges.privileges.mark_for_desks;
         }
     };
 

@@ -51,6 +51,13 @@ export function MonitoringState($q, $rootScope, ingestSources, desks, highlights
                     });
                     setState({highlightsById: highlightsById});
                 }),
+                markedDesksById: desks.fetchDesks().then(function(result) {
+                    var markedDesksById = {};
+                    result._items.forEach(function(item) {
+                        markedDesksById[item._id] = item;
+                    });
+                    setState({markedDesksById: markedDesksById});
+                }),
                 profilesById: content.getTypesLookup().then(function(profilesLookup) {
                     setState({profilesById: profilesLookup});
                 }),

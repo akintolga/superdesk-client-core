@@ -53,12 +53,12 @@ export function SearchTags($location, tags, asset, metadata) {
                     parameterValue = param.substring(param.indexOf('(') + 1, param.lastIndexOf(')'));
                 } else {
                     var type = param.split(':')[0];
-                    _.each(PARAMETERS, function(value, key) {
-                        if (type === value && searchParameters[key]) {
-                            $location.search(key, null);
-                            return;
+                    Object.keys(PARAMETERS).some((k) => {
+                        if (PARAMETERS[k] === type && searchParameters[k]) {
+                            $location.search(k, null);
+                            return true;
                         }
-                    });
+                    })
                 }
 
                 angular.forEach(scope.cvs, function(cv) {

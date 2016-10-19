@@ -69,15 +69,18 @@ export function CardsService(api, search, session, desks, config) {
                 if (desk.desk_type === 'authoring') {
                     query.filter({or: [
                         {term: {'task.last_authoring_desk': desk_id}},
+                        {terms: {'marked_desks': [desk_id]}},
                         {and: [
                             {term: {'task.desk': desk_id}},
                             {terms: {state: states}}
                         ]}
                     ]});
                 } else if (desk.desk_type === 'production') {
-                    query.filter({and: [
-                        {term: {'task.desk': desk_id}},
-                        {terms: {state: states}}
+                    query.filter({or: [
+                        {and: [
+                            {term: {'task.desk': desk_id}},
+                            {terms: {state: states}}]},
+                        {terms: {'marked_desks': [desk_id]}}
                     ]});
                 }
             }

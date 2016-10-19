@@ -31,6 +31,7 @@
         <span class="stage" tooltip="{{deskName}} / {{ stage.name }}" tooltip-placement="bottom" ng-show="stage" ng-if="item._type !== 'legal_archive'"><b>{{deskName}}</b> / {{ stage.name }}</span>
         <span class="stage" tooltip="{{deskName}} / {{ stage }}" tooltip-placement="bottom" ng-show="stage" ng-if="item._type === 'legal_archive'"><b>{{deskName}}</b> / {{ stage }}</span>
         <span ng-if="item.highlights" sd-highlights-title data-item="item"></span>
+        <span ng-if="item.marked_desks" sd-marked-desks-title data-item="item"></span>
     </div>
 
     <div class="subnav__stretch-bar" ng-if="showCustomButtons(item)">
@@ -152,14 +153,23 @@
 
                 <ul ng-if="item.task.desk && itemActions.mark_item">
                   <li class="divider"></li>
-                  <li><span class="menu-label" translate>Highlights</span></li>
+                  <li><span class="menu-label" translate>Mark item for</span></li>
                   <li>
                     <div class="dropdown highlights-toggle" dropdown>
                       <button class="dropdown-toggle" dropdown-toggle>
-                        {{ :: 'Mark item for' | translate }}
+                        {{ :: 'Highlights' | translate }}
                         <i class="icon-chevron-right-thin submenu-icon"></i>
                       </button>
                       <ul class="dropdown-menu right-submenu" sd-mark-highlights-dropdown></ul>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="dropdown highlights-toggle" dropdown>
+                      <button class="dropdown-toggle" dropdown-toggle>
+                        {{ :: 'Desks' | translate }}
+                        <i class="icon-chevron-right-thin submenu-icon"></i>
+                      </button>
+                      <ul class="dropdown-menu right-submenu" sd-mark-desks-dropdown></ul>
                     </div>
                   </li>
                 </ul>

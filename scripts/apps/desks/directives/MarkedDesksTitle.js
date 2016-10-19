@@ -1,10 +1,10 @@
-HighlightsTitle.$inject = ['highlightsService', '$timeout', 'authoring'];
-export function HighlightsTitle(highlightsService, $timeout, authoring) {
+MarkedDesksTitle.$inject = ['desks', '$timeout'];
+export function MarkedDesksTitle(desks, $timeout) {
     return {
         scope: {
             item: '=item'
         },
-        templateUrl: 'scripts/apps/highlights/views/highlights_title_directive.html',
+        templateUrl: 'scripts/apps/desks/views/marked_desks_title_directive.html',
         // todo(petr): refactor to use popover-template once angular-bootstrap 0.13 is out
         link: function(scope, elem) {
 
@@ -16,32 +16,26 @@ export function HighlightsTitle(highlightsService, $timeout, authoring) {
                 scope.open = isOpen;
             };
 
-            scope.hasMarkItemPrivilege = authoring.itemActions(scope.item).mark_item;
+            scope.hasMarkItemPrivilege = desks.hasMarkItemPrivilege();
 
-            scope.$on('item:highlight', function($event, data) {
-                var highlights = scope.item.highlights || [];
+            scope.$on('item:marked_desks', function($event, data) {
+                let markedDesks = scope.item.marked_desks || [];
                 if (scope.item._id === data.item_id) {
                     scope.$apply(function() {
                         if (data.marked) {
-                            scope.item.highlights = highlights.concat(data.highlight_id);
+                            scope.item.marked_desks = markedDesks.concat(data.desk_id);
                         } else {
-                            scope.item.highlights = _.without(highlights, data.highlight_id);
+                            scope.item.marked_desks = _.without(markedDesks, data.desk_id);
                         }
                     });
                 }
             });
 
-            scope.$watch('item.highlights', function(items) {
-                if (items) {
-                    highlightsService.get().then(function(result) {
-                        scope.highlights = _.filter(result._items, function(highlight) {
-                            return items.indexOf(highlight._id) >= 0;
-                        });
-                    });
-                }
-            });
-
             var closeTimeout, self;
+
+            desks.fetchDesks().then(function() {
+                scope.desks = desks.desks._items.filter(desk => (scope.item.marked_desks || []).includes(desk._id));
+            });
 
             elem.on({
                 click: function (e) {
@@ -65,12 +59,12 @@ export function HighlightsTitle(highlightsService, $timeout, authoring) {
             });
 
             /*
-             * Removing highlight from an item
-             * @param {string} highlight
+             * Removing marked desk from an item
+             * @param {string} desk
              */
-            scope.unmarkHighlight = function (highlight) {
-                highlightsService.markItem(highlight, scope.item).then(function() {
-                    scope.item.highlights = _.without(scope.item.highlights, highlight);
+            scope.unmarkDesk = function (desk) {
+                desks.markItem(desk, scope.item).then(function() {
+                    scope.item.marked_desks = _.without(scope.item.marked_desks, desk);
                 });
             };
         }

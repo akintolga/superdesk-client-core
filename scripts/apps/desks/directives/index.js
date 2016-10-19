@@ -14,3 +14,6 @@ export { DeskeditMacros } from './DeskeditMacros';
 export { ActionPicker } from './ActionPicker';
 export { DeskSelect } from './DeskSelect';
 export { DeskSelectItem } from './DeskSelectItem';
+export { MarkDesksDropdown } from './MarkDesksDropdown';
+export { DesksReactDropdown } from './DesksReactDropdown';
+export { MarkedDesksTitle } from './MarkedDesksTitle';

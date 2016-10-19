@@ -10,6 +10,7 @@ export const PARAMETERS = Object.freeze({
     spike: 'In Spiked',
     subject: 'Subject',
     company_codes: 'Company Codes',
+    marked_desks: 'Marked Desks',
     ingest_provider: 'Provider'
 });
 

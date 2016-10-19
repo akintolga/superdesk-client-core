@@ -39,6 +39,8 @@ angular.module('superdesk.apps.desks', [
     .directive('sdStageHeader', directive.StageHeaderDirective)
     .directive('sdDeskSelect', directive.DeskSelect)
     .directive('sdDeskSelectItem', directive.DeskSelectItem)
+    .directive('sdMarkDesksDropdown', directive.MarkDesksDropdown)
+    .directive('sdMarkedDesksTitle', directive.MarkedDesksTitle)
 
     .config(['superdeskProvider', function(superdesk) {
         superdesk
@@ -62,6 +64,22 @@ angular.module('superdesk.apps.desks', [
                 category: superdesk.MENU_SETTINGS,
                 priority: -800,
                 privileges: {desks: 1}
+            })
+
+            .activity('mark.desk', {
+                label: gettext('Mark for desk'),
+                priority: 30,
+                icon: 'star',
+                dropdown: directive.DesksReactDropdown,
+                keyboardShortcut: 'ctrl+shift+d',
+                templateUrl: 'scripts/apps/desks/views/mark_desks_dropdown.html',
+                filters: [
+                    {action: 'list', type: 'archive'}
+                ],
+                additionalCondition:['authoring', 'item', function(authoring, item) {
+                    return authoring.itemActions(item).mark_item;
+                }],
+                group: 'packaging'
             });
     }])
 

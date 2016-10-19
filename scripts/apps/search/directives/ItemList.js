@@ -28,7 +28,8 @@ const DEFAULT_LIST_CONFIG = {
         'category',
         'provider',
         'expiry',
-        'desk'
+        'desk',
+        'markedDesks'
     ]
 };
 
@@ -672,6 +673,145 @@ export function ItemList(
                 }
             });
 
+            var MarkedDesksList = React.createClass({
+                removeMarkedDesk: function(desk) {
+                    return function(event) {
+                        event.stopPropagation();
+                        desks.markItem(desk._id, this.props.item);
+                    }.bind(this);
+                },
+
+                componentDidMount: function() {
+                    this.timeout = null;
+                },
+
+                componentWillUnmount: function() {
+                    this.stopTimeout();
+                },
+
+                stopTimeout: function() {
+                    this.timeout = $timeout.cancel(this.timeout);
+                },
+
+                close: function() {
+                    this.timeout = $timeout(closeActionsMenu, 2000, false);
+                },
+
+                render: function() {
+                    var markedDesks = this.props.item.marked_desks;
+                    var markedDesksById = this.props.markedDesksById || {};
+
+                    var createMarkedDesk = function(id) {
+                        var desk = markedDesksById[id];
+                        if (desk) {
+                            return React.createElement(
+                                'li',
+                                {key: 'item-marked-' + desk._id},
+                                desk.name,
+                                desks.hasMarkItemPrivilege() ? React.createElement(
+                                    'button',
+                                    {className: 'btn btn-mini', onClick: this.removeMarkedDesk(desk)},
+                                    gettext('REMOVE')
+                                ):null
+                            );
+                        }
+                    }.bind(this);
+
+                    var items = [
+                        React.createElement(
+                            'li',
+                            {key: 'item-marked-label'},
+                            React.createElement(
+                                'div',
+                                {className: 'menu-label'},
+                                gettext('Marked For')
+                            ),
+                            React.createElement(
+                                'button',
+                                {className: 'close-button', onClick: closeActionsMenu},
+                                React.createElement(
+                                    'i',
+                                    {className: 'icon-close-small icon-white'}
+                                )
+                            )
+                        )
+                    ];
+
+                    return React.createElement(
+                        'ul',
+                        {
+                            className: 'dropdown dropdown-menu highlights-list-menu open',
+                            onMouseEnter: this.stopTimeout,
+                            onMouseLeave: this.close
+                        },
+                        items.concat(markedDesks.map(createMarkedDesk))
+                    );
+                }
+            });
+
+            var MarkedDesksInfo = React.createClass({
+                toggle: function(event) {
+                    if (event) {
+                        event.stopPropagation();
+                    }
+
+                    closeActionsMenu();
+                    this.renderDropdown();
+                },
+
+                getMarkedDesks: function() {
+                    var markedDesks = [];
+                    if (isCheckAllowed(this.props.item)) {
+                        if (this.props.item.archive_item && this.props.item.archive_item.marked_desks &&
+                            this.props.item.archive_item.marked_desks.length) {
+                            markedDesks = this.props.item.archive_item.marked_desks;
+                        } else {
+                            markedDesks = this.props.item.marked_desks || [];
+                        }
+                    }
+
+                    return markedDesks;
+                },
+
+                render: function() {
+                    var markedDesks = this.getMarkedDesks();
+                    
+                    return React.createElement(
+                        'div',
+                        {
+                            className: 'highlights-box',
+                            onClick: this.toggle
+                        },
+                        markedDesks.length ? React.createElement(
+                            'div',
+                            {className: 'highlights-list dropdown'},
+                            React.createElement(
+                                'button',
+                                {className: 'dropdown-toggle'},
+                                React.createElement('i', {
+                                    className: classNames({
+                                        'icon-bell': markedDesks.length >= 1
+                                    })
+                                })
+                            )
+                        ) : null
+                    );
+                },
+
+                renderDropdown: function() {
+                    var elem = React.createElement(MarkedDesksList, {
+                        item: this.props.item,
+                        desks: this.getMarkedDesks(),
+                        markedDesksById: this.props.markedDesksById
+                    });
+
+                    var icon = ReactDOM.findDOMNode(this).getElementsByClassName('icon-bell')[0] ||
+                    ReactDOM.findDOMNode(this).getElementsByClassName('icon-bell')[0];
+
+                    renderToBody(elem, icon);
+                }
+            });
+
             var closeTimeout;
             var DesksDropdown = React.createClass({
                 getInitialState: function() {
@@ -862,6 +1002,10 @@ export function ItemList(
 
                 highlights: function(props) {
                     return React.createElement(HighlightsInfo, angular.extend({key: 'highlights'}, props));
+                },
+
+                markedDesks: function(props) {
+                    return React.createElement(MarkedDesksInfo, angular.extend({key: 'markedDesks'}, props));
                 },
 
                 versioncreated: function(props) {
@@ -1274,6 +1418,7 @@ export function ItemList(
                                     item: this.props.item,
                                     className: 'dropdown-menu upward ' + this.state.position,
                                     noHighlightsLabel: gettextCatalog.getString('No available highlights'),
+                                    noDesksLabel: gettextCatalog.getString('No available desks'),
                                     noLanguagesLabel: gettextCatalog.getString('No available translations')
                                 }) : null
                             )
@@ -1413,6 +1558,7 @@ export function ItemList(
                                 desk: this.props.desk,
                                 ingestProvider: this.props.ingestProvider,
                                 highlightsById: this.props.highlightsById,
+				markedDesksById: this.props.markedDesksById,
                                 profilesById: this.props.profilesById,
                                 swimlane: this.props.swimlane,
                                 versioncreator: this.props.versioncreator
@@ -1680,6 +1826,7 @@ export function ItemList(
                             ingestProvider: this.props.ingestProvidersById[item.ingest_provider] || null,
                             desk: this.props.desksById[task.desk] || null,
                             highlightsById: this.props.highlightsById,
+                            markedDesksById: this.props.markedDesksById,
                             profilesById: this.props.profilesById,
                             setSelectedComponent: this.setSelectedComponent,
                             versioncreator: this.modifiedUserName(item.version_creator)
