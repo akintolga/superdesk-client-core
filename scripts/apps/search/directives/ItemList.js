@@ -2014,22 +2014,26 @@ export function ItemList(
                     }
                 });
 
-                scope.$on('item:highlight', function(_e, data) {
+                scope.$on('item:highlights', (_e, data) => updateMarkedItems('highlights', data));
+
+                scope.$on('item:marked_desks', (_e, data) => updateMarkedItems('marked_desks', data));
+
+                function updateMarkedItems(field, data) {
                     var item = listComponent.findItemByPrefix(data.item_id);
                     if (item) {
                         var itemId = search.generateTrackByIdentifier(item);
-                        var highlights = item.highlights || [];
+                        var marked_items = item[field] || [];
                         if (data.marked) {
-                            highlights = highlights.concat([data.highlight_id]);
+                            marked_items = marked_items.concat([data.mark_id]);
                         } else {
-                            highlights = highlights.filter(function(highlight) {
-                                return highlight !== data.highlight_id;
+                            marked_items = marked_items.filter(function(mark) {
+                                return mark !== data.mark_id;
                             });
                         }
 
-                        listComponent.updateItem(itemId, {highlights: highlights});
+                        listComponent.updateItem(itemId, {[field]: marked_items});
                     }
-                });
+                }
 
                 scope.$on('multi:reset', function(e, data) {
                     var ids = data.ids || [];

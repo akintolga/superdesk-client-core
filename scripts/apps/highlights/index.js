@@ -26,7 +26,6 @@ export default angular.module('superdesk.apps.highlights', [
     .directive('sdMultiMarkHighlightsDropdown', directive.MultiMarkHighlightsDropdown)
     .directive('sdPackageHighlightsDropdown', directive.PackageHighlightsDropdown)
     .directive('sdHighlightsInfo', directive.HighlightsInfo)
-    .directive('sdHighlightsTitle', directive.HighlightsTitle)
     .directive('sdSearchHighlights', directive.SearchHighlights)
     .directive('sdHighlightsConfig', () => ({controller: ctrl.HighlightsConfig}))
     .directive('sdHighlightsConfigModal', directive.HighlightsConfigModal)
@@ -45,7 +44,7 @@ export default angular.module('superdesk.apps.highlights', [
                     {action: 'list', type: 'archive'}
                 ],
                 additionalCondition:['authoring', 'item', function(authoring, item) {
-                    return authoring.itemActions(item).mark_item;
+                    return authoring.itemActions(item).mark_item_for_highlight;
                 }],
                 group: 'packaging'
             })

@@ -40,7 +40,6 @@ angular.module('superdesk.apps.desks', [
     .directive('sdDeskSelect', directive.DeskSelect)
     .directive('sdDeskSelectItem', directive.DeskSelectItem)
     .directive('sdMarkDesksDropdown', directive.MarkDesksDropdown)
-    .directive('sdMarkedDesksTitle', directive.MarkedDesksTitle)
 
     .config(['superdeskProvider', function(superdesk) {
         superdesk
@@ -77,7 +76,7 @@ angular.module('superdesk.apps.desks', [
                     {action: 'list', type: 'archive'}
                 ],
                 additionalCondition:['authoring', 'item', function(authoring, item) {
-                    return authoring.itemActions(item).mark_item;
+                    return authoring.itemActions(item).mark_item_for_desks;
                 }],
                 group: 'packaging'
             });

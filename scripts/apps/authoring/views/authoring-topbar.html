@@ -30,8 +30,8 @@
     <div class="subnav__authoring-topbar" ng-class="{'has-highlights': item.highlights}">
         <span class="stage" tooltip="{{deskName}} / {{ stage.name }}" tooltip-placement="bottom" ng-show="stage" ng-if="item._type !== 'legal_archive'"><b>{{deskName}}</b> / {{ stage.name }}</span>
         <span class="stage" tooltip="{{deskName}} / {{ stage }}" tooltip-placement="bottom" ng-show="stage" ng-if="item._type === 'legal_archive'"><b>{{deskName}}</b> / {{ stage }}</span>
-        <span ng-if="item.highlights" sd-highlights-title data-item="item"></span>
-        <span ng-if="item.marked_desks" sd-marked-desks-title data-item="item"></span>
+        <span ng-if="item.highlights" sd-marked-item-title data-item="item" data-field="highlights"></span>
+        <span ng-if="item.marked_desks" sd-marked-item-title data-item="item" data-field="marked_desks"></span>
     </div>
 
     <div class="subnav__stretch-bar" ng-if="showCustomButtons(item)">
@@ -151,10 +151,10 @@
                   </li>
                 </ul>
 
-                <ul ng-if="item.task.desk && itemActions.mark_item">
+                <ul ng-if="item.task.desk && (itemActions.mark_item_for_desks || itemActions.mark_item_for_highlight)">
                   <li class="divider"></li>
                   <li><span class="menu-label" translate>Mark item for</span></li>
-                  <li>
+                  <li ng-if="itemActions.mark_item_for_highlight">
                     <div class="dropdown highlights-toggle" dropdown>
                       <button class="dropdown-toggle" dropdown-toggle>
                         {{ :: 'Highlights' | translate }}
@@ -163,7 +163,7 @@
                       <ul class="dropdown-menu right-submenu" sd-mark-highlights-dropdown></ul>
                     </div>
                   </li>
-                  <li>
+                  <li ng-if="itemActions.mark_item_for_desks">
                     <div class="dropdown highlights-toggle" dropdown>
                       <button class="dropdown-toggle" dropdown-toggle>
                         {{ :: 'Desks' | translate }}

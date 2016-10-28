@@ -1,12 +1,12 @@
 <div class="highlights-list dropdown"
      dropdown
      dropdown-append-to-body
-     ng-if="highlights.length>0"
+     ng-if="marks.length>0"
      on-toggle="toggleClass(open)"
      sd-dropdown-position-absolute>
 
     <button class="dropdown-toggle" dropdown-toggle>
-        <i ng-class="{'icon-star red': highlights.length === 1, 'icon-multi-star red': highlights.length > 1}" class="icon-star red"></i>
+        <i class="{{className}} icon-open"></i>
     </button>
 
     <ul class="dropdown dropdown-menu highlights-list-menu" ng-class="{open: open}" ng-click="$event.stopPropagation()">
@@ -16,10 +16,10 @@
                 <i class="icon-close-small icon-white"></i>
             </button>
         </li>
-        <li ng-repeat="highlight in highlights track by highlight._id" title="{{ :: highlight.name }}">
-            {{ :: highlight.name }}
-            <button class="btn btn--mini uppercase" ng-if="hasMarkItemPrivilege" ng-click="unmarkHighlight(highlight._id)" translate>Remove</button>
+        <li ng-repeat="mark in markObjects track by mark._id" title="{{ :: mark.name }}">
+            {{ :: mark.name }}
+            <button class="btn btn-mini uppercase" ng-if="hasMarkItemPrivilege" ng-click="unmark(mark._id)" translate>Remove</button>
         </li>
-        <li class="none" ng-show="highlights.length === 0" translate>None</li>
+        <li class="none" ng-show="marks.length === 0" translate>None</li>
     </ul>
 </div>

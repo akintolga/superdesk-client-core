@@ -458,9 +458,14 @@ export function AuthoringService($q, $location, api, lock, autosave, confirm, pr
             _.includes(['published', 'corrected', 'killed'], current_item.state);
 
         //mark item for highlights
-        action.mark_item = (current_item.task && current_item.task.desk &&
+        action.mark_item_for_highlight = (current_item.task && current_item.task.desk &&
             !is_read_only_state && current_item.package_type !== 'takes' &&
              user_privileges.mark_for_highlights);
+
+        //mark item for desks
+        action.mark_item_for_desks = (current_item.task && current_item.task.desk &&
+            !is_read_only_state && current_item.package_type !== 'takes' &&
+             user_privileges.mark_for_desks);
 
         // allow all stories to be packaged if it doesn't have Embargo
         action.package_item = !_.includes(['spiked', 'scheduled', 'killed'], current_item.state) &&

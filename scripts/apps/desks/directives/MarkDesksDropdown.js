@@ -1,3 +1,14 @@
+/**
+ * @ngdoc directive
+ * @module superdesk.apps.desks
+ * @name MarkDesksDropdown
+ *
+ * @requires desks
+ * @requires $timeout
+ *
+ *
+ * @description Creates dropdown react element with list of available desks
+ */
 MarkDesksDropdown.$inject = ['desks', '$timeout'];
 export function MarkDesksDropdown(desks, $timeout) {
     return {
@@ -14,7 +25,6 @@ export function MarkDesksDropdown(desks, $timeout) {
             };
 
             desks.fetchDesks().then(function(result) {
-                console.log('Results:', result);
                 scope.desks = result._items;
                 $timeout(function () {
                     var deskDropdown = angular.element('.more-activity-menu.open .dropdown-noarrow');

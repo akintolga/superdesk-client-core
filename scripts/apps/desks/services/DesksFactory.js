@@ -299,8 +299,7 @@ export function DesksFactory($q, api, preferencesService, userList, notify, sess
             return api.save('marked_for_desks', {marked_desk: desk, marked_item: marked_item.guid});
         },
         hasMarkItemPrivilege: function() {
-            return true;
-            //return !!privileges.privileges.mark_for_desks;
+            return !!privileges.privileges.mark_for_desks;
         }
     };
 

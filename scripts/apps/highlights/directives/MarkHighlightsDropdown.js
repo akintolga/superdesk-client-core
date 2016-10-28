@@ -13,8 +13,6 @@ export function MarkHighlightsDropdown(desks, highlightsService, $timeout) {
                 return scope.item && scope.item.highlights && scope.item.highlights.indexOf(highlight._id) >= 0;
             };
 
-            console.log('loading highlights...');
-
             highlightsService.get(desks.getCurrentDeskId()).then(function(result) {
                 scope.highlights = result._items;
                 $timeout(function () {
