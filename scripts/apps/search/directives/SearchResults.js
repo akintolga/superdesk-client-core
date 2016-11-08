@@ -173,9 +173,20 @@ export function SearchResults(
                     }
                 }
 
-                if (data && data.items && scope.showRefresh && !data.force) {
+                if (data && (data.item || data.items || data.item_id) && scope.showRefresh && !data.force) {
                     // if we know the ids of the items then try to fetch those only
                     originalQuery = angular.extend({}, criteria.source.query);
+
+                    let items = {};
+                    if (data.item) {
+                        items[data.item] = 1;
+                    } else if (data.item_id) {
+                        items[data.item_id] = 1;
+                    }
+                    else {
+                        items = data.items;
+                    }
+
                     criteria.source.query = search.getItemQuery(data.items);
                 }
 

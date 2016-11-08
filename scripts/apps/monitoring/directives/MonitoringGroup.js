@@ -76,7 +76,11 @@ export function MonitoringGroup(cards, api, authoringWorkspace, $timeout, superd
             scope.$on('content:update', scheduleIfShouldUpdate);
 
             if (scope.group.type !== 'stage') {
-                scope.$on('ingest:update', scheduleQuery);
+                scope.$on('ingest:update', (event, data) => {
+                    if (!scope.showRefresh) {
+                        scheduleQuery(event, data);
+                    }
+                });
             }
 
             function scheduleIfShouldUpdate(event, data) {
@@ -311,6 +315,7 @@ export function MonitoringGroup(cards, api, authoringWorkspace, $timeout, superd
                 criteria = cards.criteria(scope.group, null, monitoring.queryParam);
                 criteria.source.from = 0;
                 criteria.source.size = 25;
+                var originalQuery;
 
                 // when forced refresh or query then keep query size default as set 25 above.
                 if (!(data && data.force)) {
@@ -326,9 +331,21 @@ export function MonitoringGroup(cards, api, authoringWorkspace, $timeout, superd
                     multi.reset();
                 }
 
-                if (data && data.items && scope.showRefresh && !data.force) {
+                if (data && (data.item || data.items || data.item_id) && scope.showRefresh && !data.force) {
                     // if we know the ids of the items then try to fetch those only
-                    criteria.source.query = search.getItemQuery(data.items);
+                    originalQuery = angular.extend({}, criteria.source.query);
+
+                    let items = {};
+                    if (data.item) {
+                        items[data.item] = 1;
+                    } else if (data.item_id) {
+                        items[data.item_id] = 1;
+                    }
+                    else {
+                        items = data.items;
+                    }
+
+                    criteria.source.query = search.getItemQuery(items);
                 }
 
                 return apiquery().then(function(items) {
@@ -352,6 +369,10 @@ export function MonitoringGroup(cards, api, authoringWorkspace, $timeout, superd
                     } else {
                         // update scope items only with the matching fetched items
                         scope.items = search.updateItems(items, scope.items);
+                    }
+                }).finally(function() {
+                    if (originalQuery) {
+                        criteria.source.query = originalQuery;
                     }
                 });
             }
