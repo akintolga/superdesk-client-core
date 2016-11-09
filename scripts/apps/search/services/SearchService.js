@@ -592,6 +592,19 @@ export function SearchService($location, gettext, config, session) {
     };
 
     /**
+     * @ngdoc method
+     * @name doesSearchAgainstRepo
+     * @public
+     * @return {bool}
+     * @description Checks if the given search object will do the search agains the given repo
+     * @param {Object} search search criteria
+     * @param {string} repo name of the repo: ingest, archive, published, archived
+     */
+    this.doesSearchAgainstRepo = function(search, repo) {
+        return !search.filter.query.repo || search.filter.query.repo.toLowerCase().indexOf(repo.toLowerCase());
+    }
+
+    /**
      * Update scope items only with the matching fetched newItems
      *
      * @param {Object} newItems
