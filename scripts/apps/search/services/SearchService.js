@@ -103,6 +103,9 @@ export function SearchService($location, gettext, config, session) {
             case 'company_codes':
                 filters.push({terms: {'company_codes.qcode': JSON.parse(params[key])}});
                 break;
+            case 'marked_desks':
+                filters.push({terms: {'marked_desks.desk_id': JSON.parse(params[key])}});
+                break;
             default:
                 var filter = {term: {}};
 

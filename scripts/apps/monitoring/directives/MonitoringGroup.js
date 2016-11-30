@@ -88,7 +88,8 @@ export function MonitoringGroup(cards, api, authoringWorkspace, $timeout, superd
                 }
             });
 
-            scope.$on('item:highlight', scheduleQuery);
+            scope.$on('item:highlights', scheduleQuery);
+            scope.$on('item:marked_desks', scheduleQuery);
             scope.$on('content:update', scheduleIfShouldUpdate);
 
             if (scope.group.type === 'search' && search.doesSearchAgainstRepo(scope.group.search, 'ingest')) {
